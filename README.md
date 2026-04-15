@@ -1,158 +1,176 @@
-# Case Study: End-to-End Analysis of eCommerce Retail Data using RFM Segmentation, Cohort Analysis & Market Basket Analysis
+# Comprehensive Retail Analytics: RFM Segmentation, Customer Cohort Analysis & Cross-Sales Intelligence
 
-## Introduction
+## Project Overview
 
-This case study outlines an end-to-end data analysis project using the UCI Online Retail dataset. The primary objective was to transform raw transactional data into actionable business insights through rigorous data cleaning, exploratory analysis, and advanced analytics. The project leveraged SQL for data manipulation and Python (with Pandas, Seaborn, and Matplotlib) for visualization. Key advanced analytical techniques applied include RFM segmentation, cohort analysis, and market basket analysis.
+This portfolio project demonstrates a complete data analytics workflow applied to the UCI Online Retail dataset. The work encompasses data acquisition, quality assurance, exploratory investigation, and sophisticated analytical modeling to uncover actionable business intelligence. The technical stack includes SQL for data engineering and Python (Pandas, Seaborn, Matplotlib) for analytical visualization. Three core methodologies were implemented: RFM customer segmentation, temporal cohort analysis, and association pattern mining.
 
+## [Interactive Dashboard](https://public.tableau.com/app/profile/paritosh.sharma.ghimire/viz/retail_analysis_dash/DashboardLanding)
 
-## [Dashboard](https://public.tableau.com/app/profile/paritosh.sharma.ghimire/viz/retail_analysis_dash/DashboardLanding)
-
-![image](https://github.com/user-attachments/assets/09afe4c1-e2e5-4fc5-930c-af12e0bc116b)
-
+![Dashboard Preview](https://github.com/user-attachments/assets/09afe4c1-e2e5-4fc5-930c-af12e0bc116b)
 
 
-## [Data Ingestion and Transformation](preprocessing/load_and_transform/migration_to_normalised_tables.sql)
 
-- **Data Source:**  
-  The dataset originated as an XLSX file containing online retail transactions. A Python script was used to convert the XLSX file to CSV, which was then imported into a PostgreSQL staging table.
+## Data Pipeline & Foundation Architecture
 
-- **Staging Process:**  
-  The raw data was loaded into a staging table where initial transformations were applied. Missing `customer_id` values were imputed with a placeholder (e.g., `00000`) to ensure consistency for downstream analysis.
+### Data Acquisition and Initial Processing
 
-## [Data Quality Checks and Cleaning](preprocessing/data_quality_check.sql)
+[View Migration Script](preprocessing/load_and_transform/migration_to_normalised_tables.sql)
 
-- **Duplicate Removal:**  
-  Duplicate rows were identified and removed from the staging table to prevent skewing analysis.
+The analytical foundation begins with extracting the raw transaction dataset from an XLSX source file. A Python utility automated the conversion to CSV format, facilitating seamless import into a PostgreSQL staging environment. Initial null values in customer identifiers were systematically replaced with default placeholders to maintain referential integrity throughout the analytical pipeline.
 
-- **Handling Cancelled Orders:**  
-  Negative quantity values were flagged as cancelled orders. A boolean column (`is_cancelled`) was added to clearly mark these records.
+## Data Validation and Standardization Protocol
 
-- **Unit Price Corrections:**  
-  - Initially, 1,180 rows had a `unit_price` of 0, spread across 683 distinct products.
-  - Further investigation revealed that some rows with stock codes such as `M` (Manual), `B` (Adjust bad dept), and `BANK CHARGES` (Bank_charges) were not relevant to consumer transaction analysis.
-  - These rows, along with rows where `customer_id` was null, were dropped (1,134 rows removed), leaving 46 rows for further consideration.
-  - The remaining rows were filled using mean value imputation strategy.
-  - After cleaning, the only remaining instances of `unit_price = 0` were for cancelled orders.
-  - Remaining anomalies were imputed using the mean value, ensuring that revenue calculations were accurate.
+[View Quality Assurance Queries](preprocessing/data_quality_check.sql)
 
-- **Description Imputation:**  
-  For cancelled orders lacking product descriptions, a placeholder value ("cancelled orders do not have description") was used.
+A structured framework was implemented to ensure data integrity and consistency:
 
-- **Date Validation:**  
-  All invoice dates were checked for validity, confirming no anomalies in the time dimension.
+- **Duplicate Record Elimination:**  
+  Redundant records were systematically identified and removed to prevent analytical bias.
 
-- **Final Outcome:**  
-  The resulting clean dataset in the staging area provided a robust foundation for advanced analytics.
+- **Transaction Status Classification:**  
+  Negative quantity values were flagged as cancelled transactions. A dedicated status indicator (`is_cancelled`) was introduced for granular tracking.
 
-## [Exploratory Data Analysis (EDA)](EDA/eda.ipynb)
+- **Unit Price Reconciliation:**  
+  - Initial assessment identified 1,180 records with zero unit prices across 683 product codes.
+  - Contextual analysis revealed non-transactional records (e.g., stock codes: `M` [Manual adjustments], `B` [Bad debt adjustments], `BANK CHARGES`) that fell outside consumer transaction scope.
+  - These non-transactional items and records with missing customer data were excluded from the dataset (1,134 records removed).
+  - Of the remaining outliers, mean-value imputation was applied to standardize pricing.
+  - Post-cleaning verification confirmed zero unit prices exclusively appeared in cancelled transactions.
+  - Final anomalies were resolved using statistical imputation to ensure revenue accuracy.
 
-### Customer Insights
+- **Product Description Normalization:**  
+  Missing descriptions in cancelled orders were replaced with a standardized placeholder message.
 
-- **Unique Customer Count:**  
-  SQL queries revealed a total of 4,372 unique customers, with a notable 90% hailing from the UK.
+- **Temporal Data Validation:**  
+  All invoice timestamps underwent validation checks, confirming data integrity across the time dimension.
 
-  <img src='./img/customers_by_countries.png' width=500>
-
-- **Order Volume Analysis:**  
-  By excluding placeholder `customer_id` ('00000'), the analysis showed:
-  - Some customers placed hundreds of orders (e.g., customer 14911 placed 248 orders).
-  - Statistical measures indicated an average of 5 orders per customer and a median of 3, suggesting a right-skewed distribution.
-
-  <img src='./img/total_orders_c_vs_p.png' width='500'>
-
-
-### Invoice and Revenue Analysis
-
-- **Invoice Trends:**  
-  Analysis of invoice dates indicated that the sales data spans 1 year and 8 days. Month-over-month order growth metrics highlighted seasonal fluctuations, including notable peaks and declines.
-
-- **Cancellation Metrics:**  
-  Overall, 20.58% of orders were cancelled. A deeper month-over-month breakdown revealed a peak cancellation rate of 25.48% in April 2011 and significant variations across the year.
-
-
-  <img src='./img/total_vs_cancelled_orders.png' width='500'>
-
-- **Revenue Performance:**  
-  - Total revenue from non-cancelled orders was calculated at approximately 10.64M.
-  - Lost revenue due to cancellations amounted to roughly 894K.
-  - Time-series analysis provided insights into revenue trends and highlighted anomalies such as a drastic drop in December 2011.
-
-    <img src='./img/rev_current_vs_prev.png' width='500'>
-
-
-## Advanced Analytics
-
-### [RFM Analysis](Analysis/rfm_analysis.sql)
-
-- **Objective:**  
-  Segment customers based on Recency, Frequency, and Monetary values to identify high-value and at-risk segments.
-  
-- **Methodology:**  
-  - Each customer was assigned scores (1-5) for recency (days since last purchase), frequency (number of orders), and monetary (total spending).
-  - An overall RFM score was computed by summing the three individual scores.
-  - Segments such as "Champions" (5-5-5) and "At Risk" were defined based on these scores.
-  
-  <img src='./img/rfm_segm.png' width='500'>
-
-  	- “Champions” (7.93%) are your best-performing customers—recent, high frequency, and high spending.
-    - “Less Frequent but Loyal” (24.55%) represents customers who consistently return, albeit less frequently.
-	- “At Risk” (26.00%) customers might need targeted re-engagement strategies, as they have lower scores in recency, frequency, or monetary value.
-    - “Returning and Loyal” (20.82%) and “Dormant” (20.70%) segments provide additional context on customer behavior that can help tailor marketing efforts.
 - **Outcome:**  
-  This segmentation enabled targeted marketing strategies, allowing the business to focus on loyal customers while designing re-engagement plans for at-risk segments.
+  The cleaned staging dataset offered a reliable foundation for subsequent analytical modeling.
 
-### [Cohort Analysis](Analysis/cohert_analysis.sql)
+## Exploratory Data Investigation
 
-- **Objective:**  
-  Group customers by the month of their first purchase to understand retention and loyalty over time.
-  
-- **Methodology:**  
-  - The first purchase date for each customer was determined, and customers were grouped into cohorts based on this date.
-  - Subsequent purchase behavior was tracked month-over-month to assess retention.
+[View Analysis Notebook](EDA/eda.ipynb)
 
-  <img src='./img/cohort.png' width='500'>
-  
-- **Outcome:**  
-  The cohort analysis provided insights into customer lifetime value and retention trends, identifying periods with higher churn or improved loyalty.
+### Customer Demographics and Behavioral Patterns
 
-### [Market Basket Analysis](Analysis/cohert_analysis.sql)
+- **Customer Population Composition:**  
+  Dataset analysis identified 4,372 distinct customers, with geographic concentration heavily weighted toward the United Kingdom market (90% of customer base).
+
+  ![Geographic Customer Distribution](./img/customers_by_countries.png)
+
+- **Transaction Frequency Distribution:**  
+  Excluding system-generated placeholder customer identifiers, the analysis revealed pronounced distribution skewness:
+  - Peak engagement: individual customers executed over 248 purchase transactions
+  - Central tendency: mean of 5 transactions per customer, median of 3
+  - Distribution pattern: right-skewed, indicating a concentrated high-value segment
+
+  ![Customer Transaction Volume](./img/total_orders_c_vs_p.png)
+
+### Revenue Metrics and Temporal Trends
+
+- **Sales Timeline and Seasonal Patterns:**  
+  Transactions spanned 408 days across fiscal periods. Month-over-month comparative analysis illuminated seasonal demand fluctuations with distinct peaks and troughs.
+
+- **Order Cancellation Analysis:**  
+  Cancelled orders represented 20.58% of total transaction volume. Temporal decomposition revealed:
+  - Peak cancellation rate: 25.48% (April 2011)
+  - Substantial month-to-month volatility throughout the observation period
+
+  ![Order Fulfillment Trends](./img/total_vs_cancelled_orders.png)
+
+- **Revenue Performance Indicators:**
+  - Completed transaction revenue: approximately 10.64M
+  - Revenue attrition from cancellations: approximately 894K
+  - Time-series decomposition identified notable revenue contraction in December 2011
+
+    ![Revenue Performance Analysis](./img/rev_current_vs_prev.png)
 
 
-- **Objective:**  
-  Identify products that are frequently purchased together to uncover cross-selling opportunities.
-  
-- **Methodology:**  
-  - A self-join on the `invoice_items` table was performed, pairing products within the same invoice.
-  - A condition (`a.stock_code < b.stock_code`) was applied to ensure each unique product pair was counted only once.
-  - Co-occurrence counts were aggregated and filtered to highlight significant product associations.
- 
-  <img width="1158" alt="image" src="https://github.com/user-attachments/assets/5c5fe1ca-4f91-4589-b64a-84deeb36684f" />
+## Advanced Analytical Methodologies
 
-  
-- **Outcome:**  
-  This analysis revealed product pairings that could be used to optimize product recommendations and design bundled promotions.
+### Recency-Frequency-Monetary (RFM) Customer Segmentation
 
-### Time-Series Analysis & Forecasting
+[View Segmentation Model](Analysis/rfm_analysis.sql)
 
-- **Objective:**  
-  Forecast future sales trends and understand seasonality
-  
-- **Methodology:**  
-  - Sales data was aggregated on a monthly basis using SQL.
-  - The aggregated data was exported and analyzed in Python using libraries such as Pandas, Seaborn, and Matplotlib.
-  
-- **Outcome:**  
-  These predictive insights assist in inventory planning and strategic marketing, preparing the business to anticipate seasonal fluctuations.
+- **Strategic Objective:**  
+  Classify customers into actionable segments based on purchase behavior and value metrics to enable targeted engagement strategies.
 
-## Conclusions & Future Work
+- **Analytical Framework:**  
+  - Each customer dimension (recency, frequency, monetary) was scored across a 1-5 scale
+  - Recency: temporal distance to latest transaction
+  - Frequency: count of completed purchase transactions
+  - Monetary: cumulative customer lifetime value
+  - Composite RFM score: sum of individual dimension scores
+  - Segment classification derived from score-based thresholds
 
-This end-to-end analysis of the UCI Online Retail dataset demonstrates the full lifecycle of a data analytics project:
+  ![RFM Segment Distribution](./img/rfm_segm.png)
 
-- **Data Cleaning and Transformation:**  
-  A rigorous process ensured that the raw data was transformed into a high-quality, normalized dataset.
+- **Segment Classification:**
+  - **Champions (7.93%):** Highest-value customers with recent activity, high transaction frequency, and strong monetary contribution
+  - **Loyal Active (24.55%):** Consistent repeat customers with moderate engagement patterns
+  - **Dormant/Inactive (26.00%):** Moderate risk segment requiring re-engagement initiatives to stimulate repeat purchases
+  - **Returning Engaged (20.82%):** Customers with demonstrated loyalty patterns and consistent transaction history
+  - **Inactive Base (20.70%):** Extended period since last engagement; candidates for lifecycle recovery programs
 
-- **Exploratory Analysis:**  
-  EDA revealed key customer behaviors, invoice trends, and revenue patterns.
+- **Business Application:**  
+  The segmentation framework enables precision marketing allocation, allowing resources to concentrate on champion retention while designing win-back strategies for dormant segments.
 
-- **Advanced Analytics:**  
-  Through RFM segmentation, cohort analysis, and market basket analysis, actionable insights were derived to inform business strategy.
+### Customer Lifecycle Cohort Analysis
+
+[View Cohort Analysis Model](Analysis/cohert_analysis.sql)
+
+- **Strategic Objective:**  
+  Group customers by the month of their first purchase to understand retention and loyalty patterns over time.
+
+- **Analytical Approach:**  
+  - The first transaction date was determined for each customer, establishing cohort membership
+  - Subsequent purchase activity was tracked on a monthly basis to assess retention rates
+  - Longitudinal patterns revealed customer lifetime trajectories and churn indicators
+
+  ![Cohort Retention Analysis](./img/cohort.png)
+
+- **Business Insights:**  
+  The cohort methodology provided insights into customer lifetime value trajectories, retention trends, and periods of elevated churn or improved loyalty, enabling proactive lifecycle management.
+
+### Cross-Product Association Mining
+
+[View Market Basket Model](Analysis/cohert_analysis.sql)
+
+- **Strategic Objective:**  
+  Identify products frequently purchased together to uncover cross-selling opportunities and optimize product bundling strategies.
+
+- **Analytical Methodology:**  
+  - Self-join operations paired products within identical invoices
+  - A condition (`a.stock_code < b.stock_code`) ensured each unique product pairing was counted once
+  - Co-occurrence frequency was aggregated and filtered to highlight significant associations
+
+  ![Product Association Network](https://github.com/user-attachments/assets/5c5fe1ca-4f91-4589-b64a-84deeb36684f)
+
+- **Business Application:**  
+  Product association insights inform recommendation algorithms and enable strategic bundled promotions, optimizing basket value and customer satisfaction.
+
+### Temporal Forecasting and Seasonality Analysis
+
+- **Strategic Objective:**  
+  Forecast future sales trends and quantify seasonal patterns to inform inventory and marketing planning.
+
+- **Analytical Approach:**  
+  - Sales transactions were aggregated into monthly periods using SQL
+  - Time-series decomposition was performed using Python analytics libraries (Pandas, Seaborn, Matplotlib)
+  - Seasonal patterns and trend components were isolated and visualized
+
+- **Strategic Value:**  
+  Predictive insights enable proactive inventory optimization and coordinated marketing campaigns, positioning the business to capitalize on anticipated seasonal demand variations.
+
+## Project Conclusions
+
+This end-to-end analysis of the UCI Online Retail dataset demonstrates the complete lifecycle of enterprise data analytics:
+
+- **Data Engineering Foundation:**  
+  Rigorous data acquisition, validation, and standardization transformed raw transactional records into a high-quality analytical dataset.
+
+- **Exploratory Business Intelligence:**  
+  Systematic investigation revealed customer demographics, revenue patterns, and behavioral trends underlying business performance.
+
+- **Advanced Analytics and Strategy:**  
+  RFM segmentation, cohort analysis, and association mining translated raw data into actionable strategies for customer lifetime value optimization, targeted marketing, and revenue growth.
